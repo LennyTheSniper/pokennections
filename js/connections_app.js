@@ -6,6 +6,7 @@ const GRID_ROWS = 4;
 const MAX_PUZZLE_ATTEMPTS = 20000;
 const SPECIAL_PREFIXES = ["regions/", "types/"];
 const SPECIAL_PREFIXES_2 = ["colors/", "egg_groups/", "growth_rates/", "shapes/"];
+const SPECIAL_PREFIXES_3 = ["moves/"];
 
 const SOLVED_CLASS_COUNT = 4; // solved-0 .. solved-3
 const RULE_CATEGORY_ORDER = [
@@ -81,8 +82,12 @@ function isSpecialRule2(ruleName) {
   return SPECIAL_PREFIXES_2.some((p) => ruleName.startsWith(p));
 }
 
+function isSpecialRule3(ruleName) {
+  return SPECIAL_PREFIXES_3.some((p) => ruleName.startsWith(p));
+}
+
 function isNormalRule(ruleName) {
-  return !isSpecialRule(ruleName) && !isSpecialRule2(ruleName);
+  return !isSpecialRule(ruleName) && !isSpecialRule2(ruleName) && !isSpecialRule3(ruleName);
 }
 
 function apiName(monName) {
@@ -174,18 +179,28 @@ function generatePuzzle(rules) {
 
   const specialRules = allRules.filter(isSpecialRule);
   const specialRules2 = allRules.filter(isSpecialRule2);
+  const specialRules3 = allRules.filter(isSpecialRule3);
   const normalRules = allRules.filter(isNormalRule);
 
   const possibleModes = [];
-  if (normalRules.length >= 4) possibleModes.push({ special1: 0, special2: 0 });
+  if (normalRules.length >= 4) possibleModes.push({ special1: 0, special2: 0, special3: 0 });
   if (specialRules.length > 0 && normalRules.length >= 3) {
-    possibleModes.push({ special1: 1, special2: 0 });
+    possibleModes.push({ special1: 1, special2: 0, special3: 0 });
   }
   if (specialRules2.length > 0 && normalRules.length >= 3) {
-    possibleModes.push({ special1: 0, special2: 1 });
+    possibleModes.push({ special1: 0, special2: 1, special3: 0 });
+  }
+  if (specialRules3.length > 0 && normalRules.length >= 3) {
+    possibleModes.push({ special1: 0, special2: 0, special3: 1 });
   }
   if (specialRules.length > 0 && specialRules2.length > 0 && normalRules.length >= 2) {
-    possibleModes.push({ special1: 1, special2: 1 });
+    possibleModes.push({ special1: 1, special2: 1, special3: 0 });
+  }
+  if (specialRules.length > 0 && specialRules3.length > 0 && normalRules.length >= 2) {
+    possibleModes.push({ special1: 1, special2: 0, special3: 1 });
+  }
+  if (specialRules2.length > 0 && specialRules3.length > 0 && normalRules.length >= 2) {
+    possibleModes.push({ special1: 0, special2: 1, special3: 1 });
   }
 
   if (possibleModes.length === 0) {
