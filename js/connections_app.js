@@ -405,6 +405,7 @@ class Game {
     this.finished = false;
     this.won = false;
     this.revealAnswers = false;
+    this.confettiFired = false;
     this.setFlash("", "neutral", 0);
   }
 
@@ -513,6 +514,10 @@ class Game {
         this.finished = true;
         this.won = true;
         this.setFlash("You solved all 4 groups.", "good", 0);
+        if (!this.confettiFired) {
+          this.confettiFired = true;
+          fireWinConfetti();
+        }
       }
     } else {
       this.strikes += 1;
@@ -786,6 +791,35 @@ function initRulesModal(rules) {
     if (e.target === e.currentTarget) {
       closeRulesModal();
     }
+  });
+}
+
+// ---------- confetti ----------
+
+// Fires a single confetti burst from the left and right edges of the
+// window, angled inward, when the player wins.
+function fireWinConfetti() {
+  // Guard in case the confetti script hasn't loaded for some reason.
+  if (typeof confetti !== "function") {
+    console.warn("confetti.js not loaded; skipping win animation.");
+    return;
+  }
+
+  // Left edge, firing up and to the right.
+  confetti({
+    particleCount: 100,
+    angle: 60,
+    spread: 70,
+    startVelocity: 55,
+    origin: { x: 0, y: 0.6 },
+  });
+  // Right edge, firing up and to the left.
+  confetti({
+    particleCount: 100,
+    angle: 120,
+    spread: 70,
+    startVelocity: 55,
+    origin: { x: 1, y: 0.6 },
   });
 }
 

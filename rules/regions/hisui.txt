@@ -24,4 +24,5 @@ sneasler
 kleavor
 overqwil
 basculin-white-striped
-basculegion
+basculegion-male
+basculegion-female
