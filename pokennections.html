@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pokénnections</title>
+  <link rel="icon" type="image/x-icon" href="./images/favicon.ico">
+  <link rel="stylesheet" href="css/connections.css" />
+</head>
+<body>
+  <div id="app">
+    <header>
+      <h1>Pokénnections</h1>
+      <div class="subtitle" id="subtitle">Loading...</div>
+      <div class="flash" id="flash"></div>
+    </header>
+
+    <div class="layout">
+      <div class="panel" id="board-panel">
+        <div id="board"></div>
+      </div>
+
+      <div class="panel" id="info-panel">
+        <div class="panel-title">Controls</div>
+        <button class="btn" id="btn-submit">Submit</button>
+        <button class="btn" id="btn-shuffle">Shuffle</button>
+        <button class="btn" id="btn-clear">Deselect</button>
+        <button class="btn" id="btn-new">New Game</button>
+        <button class="btn" id="btn-rules">Rules</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="rules-overlay" id="rules-overlay" hidden>
+    <div class="rules-dialog" role="dialog" aria-modal="true" aria-labelledby="rules-title">
+      <button class="rules-close" id="btn-rules-close" type="button" aria-label="Close rules">X</button>
+      <h2 id="rules-title">Possible Rules</h2>
+      <div class="rules-list" id="rules-list"></div>
+    </div>
+  </div>
+
+  <script src="js/connections_app.js"></script>
+  <script src="js/responsive-connections.js"></script>
+</body>
+</html>
