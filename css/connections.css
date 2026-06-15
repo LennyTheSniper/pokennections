@@ -63,16 +63,10 @@ h1 {
   letter-spacing: 0.5px;
 }
 
-.subtitle {
-  margin-top: 6px;
-  color: var(--muted);
-  font-size: clamp(14px, 1.6vw, 20px);
-}
-
 .flash {
   margin-top: 4px;
   min-height: 24px;
-  font-size: clamp(14px, 1.6vw, 20px);
+  font-size: clamp(12px, 1.6vw, 18px);
   font-weight: 600;
 }
 
@@ -163,7 +157,6 @@ h1 {
 .tile img.sprite {
   max-width: 100%;
   max-height: 100%;
-  image-rendering: pixelated;
 }
 
 .tile .sprite-placeholder {
@@ -184,6 +177,28 @@ h1 {
 }
 
 /* Info / control panel */
+.strike-meter {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(5px, 2.5%, 9px);
+  margin: 0 0 12px;
+  min-height: 36px;
+  width: 100%;
+  flex-wrap: nowrap;
+  overflow: hidden;
+}
+
+.strike-icon {
+  flex: 0 1 auto;
+  width: clamp(24px, 18%, 36px);
+  max-width: calc((100% - 27px) / 4);
+  height: auto;
+  aspect-ratio: 1 / 1;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
 .panel-title {
   font-size: 22px;
   font-weight: 700;

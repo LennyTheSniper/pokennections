@@ -4,9 +4,16 @@ const RULES_MANIFEST = "rules/manifest.json";
 const GRID_COLS = 4;
 const GRID_ROWS = 4;
 const MAX_PUZZLE_ATTEMPTS = 20000;
-const SPECIAL_PREFIXES = ["regions/", "types/"];
-const SPECIAL_PREFIXES_2 = ["colors/", "egg_groups/", "growth_rates/", "shapes/"];
-const SPECIAL_PREFIXES_3 = ["moves/"];
+// Each inner array is a group of rule-name prefixes that should never be
+// chosen together more than once on the same board (i.e. at most one rule
+// from a given group may appear in a puzzle at a time). Add or remove
+// groups/prefixes here freely -- the puzzle generator below scales to
+// however many groups are listed.
+const EXCLUSIVE_RULE_GROUPS = [
+  ["regions/", "types/"],
+  ["colors/", "egg_groups/", "growth_rates/", "shapes/"],
+  ["moves/"],
+];
 
 const SOLVED_CLASS_COUNT = 4; // solved-0 .. solved-3
 const RULE_CATEGORY_ORDER = [
@@ -74,20 +81,20 @@ function compareRuleCategories(a, b) {
   return prettyCategoryName(a).localeCompare(prettyCategoryName(b));
 }
 
-function isSpecialRule(ruleName) {
-  return SPECIAL_PREFIXES.some((p) => ruleName.startsWith(p));
-}
-
-function isSpecialRule2(ruleName) {
-  return SPECIAL_PREFIXES_2.some((p) => ruleName.startsWith(p));
-}
-
-function isSpecialRule3(ruleName) {
-  return SPECIAL_PREFIXES_3.some((p) => ruleName.startsWith(p));
+// Returns the index of the EXCLUSIVE_RULE_GROUPS entry that ruleName belongs
+// to, or -1 if it isn't part of any exclusivity group (i.e. it's a "normal"
+// rule).
+function exclusiveGroupIndex(ruleName) {
+  for (let i = 0; i < EXCLUSIVE_RULE_GROUPS.length; i++) {
+    if (EXCLUSIVE_RULE_GROUPS[i].some((p) => ruleName.startsWith(p))) {
+      return i;
+    }
+  }
+  return -1;
 }
 
 function isNormalRule(ruleName) {
-  return !isSpecialRule(ruleName) && !isSpecialRule2(ruleName) && !isSpecialRule3(ruleName);
+  return exclusiveGroupIndex(ruleName) === -1;
 }
 
 function apiName(monName) {
@@ -177,37 +184,45 @@ function generatePuzzle(rules) {
     throw new Error("Need at least 4 rule files with Pokémon in them.");
   }
 
-  const specialRules = allRules.filter(isSpecialRule);
-  const specialRules2 = allRules.filter(isSpecialRule2);
-  const specialRules3 = allRules.filter(isSpecialRule3);
+  const groupRules = EXCLUSIVE_RULE_GROUPS.map((_, idx) =>
+    allRules.filter((r) => exclusiveGroupIndex(r) === idx)
+  );
   const normalRules = allRules.filter(isNormalRule);
 
+  // A "mode" is the set of exclusivity-group indices that will contribute
+  // one rule each to this puzzle; the remaining categories come from
+  // normalRules. Every non-empty group can contribute at most one rule
+  // (enforced again in boardIsValid), and we need enough normal rules to
+  // fill out the rest of the board.
+  const CATEGORIES_PER_PUZZLE = 4;
   const possibleModes = [];
-  if (normalRules.length >= 4) possibleModes.push({ special1: 0, special2: 0, special3: 0 });
-  if (specialRules.length > 0 && normalRules.length >= 3) {
-    possibleModes.push({ special1: 1, special2: 0, special3: 0 });
-  }
-  if (specialRules2.length > 0 && normalRules.length >= 3) {
-    possibleModes.push({ special1: 0, special2: 1, special3: 0 });
-  }
-  if (specialRules3.length > 0 && normalRules.length >= 3) {
-    possibleModes.push({ special1: 0, special2: 0, special3: 1 });
-  }
-  if (specialRules.length > 0 && specialRules2.length > 0 && normalRules.length >= 2) {
-    possibleModes.push({ special1: 1, special2: 1, special3: 0 });
-  }
-  if (specialRules.length > 0 && specialRules3.length > 0 && normalRules.length >= 2) {
-    possibleModes.push({ special1: 1, special2: 0, special3: 1 });
-  }
-  if (specialRules2.length > 0 && specialRules3.length > 0 && normalRules.length >= 2) {
-    possibleModes.push({ special1: 0, special2: 1, special3: 1 });
+  const numGroups = EXCLUSIVE_RULE_GROUPS.length;
+
+  for (let mask = 0; mask < 1 << numGroups; mask++) {
+    const groupIndices = [];
+    let usable = true;
+    for (let i = 0; i < numGroups; i++) {
+      if (mask & (1 << i)) {
+        if (groupRules[i].length === 0) {
+          usable = false;
+          break;
+        }
+        groupIndices.push(i);
+      }
+    }
+    if (!usable) continue;
+    if (groupIndices.length > CATEGORIES_PER_PUZZLE) continue;
+    if (normalRules.length < CATEGORIES_PER_PUZZLE - groupIndices.length) continue;
+
+    possibleModes.push(groupIndices);
   }
 
   if (possibleModes.length === 0) {
+    const groupDescriptions = EXCLUSIVE_RULE_GROUPS.map((g) => g.join("/")).join("; ");
     throw new Error(
-      "Need at least 4 normal rules, or 3 normal rules plus 1 regions/types rule, " +
-        "or 3 normal rules plus 1 colors/egg_groups/growth_rates/shapes rule, " +
-        "or 2 normal rules plus 1 rule from each special family."
+      `Need at least ${CATEGORIES_PER_PUZZLE} normal rules, or fewer normal rules ` +
+        "plus one rule each from one or more of the mutually-exclusive groups " +
+        `(${groupDescriptions}), as long as the total reaches ${CATEGORIES_PER_PUZZLE}.`
     );
   }
 
@@ -249,10 +264,12 @@ function generatePuzzle(rules) {
       }
     }
 
-    const specialCount1 = Array.from(chosenRules).filter(isSpecialRule).length;
-    const specialCount2 = Array.from(chosenRules).filter(isSpecialRule2).length;
-    if (specialCount1 > 1) return false;
-    if (specialCount2 > 1) return false;
+    for (let i = 0; i < EXCLUSIVE_RULE_GROUPS.length; i++) {
+      const countInGroup = Array.from(chosenRules).filter(
+        (rn) => exclusiveGroupIndex(rn) === i
+      ).length;
+      if (countInGroup > 1) return false;
+    }
 
     for (const rn of chosenRules) {
       if ((counts[rn] || 0) !== 4) return false;
@@ -269,9 +286,10 @@ function generatePuzzle(rules) {
     const mode = choice(possibleModes);
 
     let chosenRulesList = [];
-    if (mode.special1 === 1) chosenRulesList.push(choice(specialRules));
-    if (mode.special2 === 1) chosenRulesList.push(choice(specialRules2));
-    chosenRulesList.push(...sample(normalRules, 4 - chosenRulesList.length));
+    for (const groupIdx of mode) {
+      chosenRulesList.push(choice(groupRules[groupIdx]));
+    }
+    chosenRulesList.push(...sample(normalRules, CATEGORIES_PER_PUZZLE - chosenRulesList.length));
     chosenRulesList = shuffle(chosenRulesList);
 
     const used = new Set();
@@ -533,15 +551,28 @@ function el(tag, props = {}, children = []) {
 }
 
 function renderHeader() {
-  const subtitle = document.getElementById("subtitle");
-  subtitle.textContent = `Strikes: ${game.strikes}/4   |   Groups solved: ${game.solvedGroups.size}/4`;
-
   const flash = document.getElementById("flash");
   flash.textContent = game.flashMessage || "";
   flash.classList.remove("good", "bad");
   if (game.flashMessage) {
     if (game.flashKind === "good") flash.classList.add("good");
     if (game.flashKind === "bad") flash.classList.add("bad");
+  }
+}
+
+function renderStrikes() {
+  const meter = document.getElementById("strike-meter");
+  meter.innerHTML = "";
+
+  for (let i = 0; i < 4; i++) {
+    const isStrike = i < game.strikes;
+    meter.appendChild(
+      el("img", {
+        class: "strike-icon",
+        src: isStrike ? "images/pokeball_blank.png" : "images/pokeball.png",
+        alt: isStrike ? "Strike used" : "Strike available",
+      })
+    );
   }
 }
 
@@ -669,6 +700,8 @@ async function resolveSprite(monName, imgEl, placeholderEl) {
 }
 
 function renderSidebar() {
+  renderStrikes();
+
   document.getElementById("btn-submit").disabled = game.finished;
   document.getElementById("btn-shuffle").disabled = game.finished;
   document.getElementById("btn-clear").disabled = game.finished;
@@ -765,25 +798,28 @@ function render() {
 // ---------- bootstrap ----------
 
 async function newGame() {
-  document.getElementById("subtitle").textContent = "Generating puzzle...";
-  document.getElementById("flash").textContent = "";
+  document.getElementById("flash").textContent = "Generating puzzle...";
   try {
     game.newPuzzle();
     render();
   } catch (e) {
-    document.getElementById("subtitle").textContent = `Error: ${e.message}`;
+    const flash = document.getElementById("flash");
+    flash.textContent = `Error: ${e.message}`;
+    flash.classList.add("bad");
     console.error(e);
   }
 }
 
 async function init() {
-  document.getElementById("subtitle").textContent = "Loading rules...";
+  document.getElementById("flash").textContent = "Loading rules...";
 
   let rules;
   try {
     rules = await loadRules();
   } catch (e) {
-    document.getElementById("subtitle").textContent = `Error: ${e.message}`;
+    const flash = document.getElementById("flash");
+    flash.textContent = `Error: ${e.message}`;
+    flash.classList.add("bad");
     console.error(e);
     return;
   }
